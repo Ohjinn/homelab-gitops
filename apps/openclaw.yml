@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openclaw
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Ohjinn/homelab-gitops.git'
+    targetRevision: main
+    path: k8s/base/openclaw/test-app.yml # 실제 Nginx 파드 YAML이 있는 경로
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: openclaw-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
