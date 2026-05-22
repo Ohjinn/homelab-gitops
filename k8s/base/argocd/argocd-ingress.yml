@@ -9,6 +9,7 @@ metadata:
     # 백엔드(argocd-server)가 HTTPS를 쓰므로 Traefik이 거기로 보낼 때 프로토콜을 맞춰줌
     ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
+  ingressClassName: traefik
   rules:
     - http:
         paths:
