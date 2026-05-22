@@ -3,11 +3,9 @@ kind: Ingress
 metadata:
   name: argocd-server-ingress
   namespace: argocd
-  annotations:
-    # Traefik에게 이 트래픽은 HTTPS(TLS) 통신이라고 알려줌
-    traefik.ingress.kubernetes.io/router.tls: "true"
-    # 백엔드(argocd-server)가 HTTPS를 쓰므로 Traefik이 거기로 보낼 때 프로토콜을 맞춰줌
-    ingress.kubernetes.io/backend-protocol: "HTTPS"
+  # annotations:
+  #   traefik.ingress.kubernetes.io/router.tls: "true"
+  #   ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   ingressClassName: traefik
   rules:
@@ -19,4 +17,5 @@ spec:
               service:
                 name: argocd-server
                 port:
-                  number: 443
+                  number: 80
+                  # number: 443
