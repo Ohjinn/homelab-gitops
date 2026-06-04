@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: openclaw
+  name: hermes
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: 'https://github.com/Ohjinn/homelab-gitops.git'
     targetRevision: main
-    path: k8s/base/openclaw # 실제 Nginx 파드 YAML이 있는 경로
+    path: k8s/base/hermes
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: openclaw-system
+    namespace: hermes-system
   syncPolicy:
     automated:
       prune: true

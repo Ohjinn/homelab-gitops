@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hermes-config
+  namespace: hermes-system
+data:
+  # LiteLLM 프록시 주소 (Ollama→Gemini 자동 폴백 처리)
+  LLM_API_BASE: "http://litellm.litellm-system.svc.cluster.local:4000"
+  LLM_MODEL: "default_assistant"
+
+  # 매월 4일 알림 발송 시각 (24시간제, 한국 시간)
+  REMINDER_DAY: "4"
+  REMINDER_HOUR: "9"
+  TZ: "Asia/Seoul"

@@ -3,4 +3,6 @@ kind: Kustomization
 
 resources:
   - namespace.yml
-  - test-app.yml
+  - configmap.yml
+  - deployment.yml
+  - service.yml

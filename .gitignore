@@ -41,3 +41,6 @@ terraform.rc
 
 # Local Claude context (do not share)
 CLAUDE.md
+
+# Kubernetes secrets (manage manually via kubectl)
+**/secret.yml

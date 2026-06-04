@@ -12,15 +12,18 @@ homelab-gitops/
 │   └── cluster-root.yml      # Root Application — bootstraps all apps in apps/
 ├── apps/
 │   ├── argocd-config.yml     # ArgoCD self-configuration (ingress, params)
-│   └── openclaw.yml          # openclaw application
+│   └── hermes.yml            # Hermes Telegram Bot
 └── k8s/
     └── base/
         ├── argocd/
         │   ├── argocd-ingress.yml    # Traefik ingress for ArgoCD UI
         │   └── kustomization.yml     # insecure mode patch
-        └── openclaw/
+        └── hermes/
             ├── namespace.yml
-            ├── test-app.yml          # nginx placeholder (WIP)
+            ├── configmap.yml         # Ollama endpoint, 모델 설정, 알림 시각
+            ├── secret.yml            # Telegram 토큰, Gemini API 키 (REPLACE_ME)
+            ├── pvc.yml               # SQLite DB 저장소
+            ├── deployment.yml        # Hermes 봇 앱
             └── kustomization.yml
 ```
 
@@ -36,12 +39,10 @@ ArgoCD detects change (polling / webhook)
     │
     ├── root-app watches apps/
     │       ├── argocd-config  →  k8s/base/argocd/
-    │       └── openclaw       →  k8s/base/openclaw/
+    │       └── hermes         →  k8s/base/hermes/
     │
     └── auto sync (prune + selfHeal)
 ```
-
-All applications use `automated` sync policy with `prune: true` and `selfHeal: true` — the cluster state always converges to what is in this repository.
 
 ---
 
@@ -53,8 +54,6 @@ ArgoCD itself is installed manually (once). After that, apply the root Applicati
 kubectl apply -f bootstrap/cluster-root.yml
 ```
 
-From this point, all changes are made via Git — not `kubectl apply`.
-
 ---
 
 ## Applications
@@ -62,7 +61,34 @@ From this point, all changes are made via Git — not `kubectl apply`.
 | App | Namespace | Source Path | Status |
 |---|---|---|---|
 | argocd-self-config | argocd | `k8s/base/argocd` | Active |
-| openclaw | openclaw-system | `k8s/base/openclaw` | WIP (nginx placeholder) |
+| hermes | hermes-system | `k8s/base/hermes` | WIP |
+
+---
+
+## Hermes Bot Architecture
+
+```
+텔레그램 메시지
+      ↓
+  Hermes Bot (K8s)
+      ├── 일반 메시지  → Ollama (Mac, qwen2.5:14b)
+      └── /gemini 접두어 → Gemini Flash API
+
+      + 예약 정보 → SQLite (PVC /app/data)
+      + 매월 4일 알림 → APScheduler → 텔레그램 메시지 발송
+```
+
+### 시작 전 필수 설정
+
+1. [k8s/base/hermes/secret.yml](k8s/base/hermes/secret.yml) 에서 `REPLACE_ME` 값 교체
+   - `TELEGRAM_BOT_TOKEN`
+   - `GEMINI_API_KEY`
+
+2. [k8s/base/hermes/configmap.yml](k8s/base/hermes/configmap.yml) 에서 Ollama IP 설정
+   - `OLLAMA_BASE_URL`: Mac의 실제 IP 주소로 변경
+
+3. Hermes 봇 앱 Docker 이미지 빌드 및 푸시
+   - `ghcr.io/ohjinn/hermes-bot:latest`
 
 ---
 
@@ -76,7 +102,7 @@ From this point, all changes are made via Git — not `kubectl apply`.
 
 ## Roadmap
 
-- [ ] Replace nginx placeholder with actual openclaw application
+- [ ] Hermes 봇 앱 Python 코드 작성 및 Docker 이미지 빌드
+- [ ] Secret을 SealedSecrets 또는 External Secrets로 교체 (git 안전성)
 - [ ] Add Prometheus + Grafana stack
 - [ ] Implement canary deployment strategy via ArgoCD Rollouts
-- [ ] Add k3s worker node and configure NodeAffinity for heavy workloads

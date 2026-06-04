@@ -8,7 +8,7 @@
       source:
         repoURL: 'https://github.com/Ohjinn/homelab-gitops.git'
         targetRevision: HEAD
-        path: apps # 이 경로 안의 모든 Application YAML(자식들)을 읽어들임
+        path: apps # 이 경로 안의 모든 Application YAML을 읽어들임
       destination:
         server: 'https://kubernetes.default.svc'
         namespace: argocd
