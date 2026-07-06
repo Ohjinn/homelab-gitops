@@ -8,7 +8,7 @@ spec:
   rules:
     # Cloudflare Tunnel → cloudflared → Traefik(80) → 이 Ingress(host 매칭)
     # TLS는 Cloudflare 엣지에서 종료, 내부 구간은 HTTP
-    - host: pumpyeong.newhojin.com
+    - host: hynixsurvey.newhojin.com
       http:
         paths:
           - path: /
