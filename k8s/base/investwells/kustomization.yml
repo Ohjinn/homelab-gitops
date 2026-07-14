@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yml
+  - deployment.yml
+  - service.yml
+  - ingress.yml
+
+# 앱이 파일 2개뿐이라 이미지를 따로 빌드하지 않고 스톡 python 이미지에 소스를 마운트한다.
+# 생성되는 ConfigMap 이름에 내용 해시가 붙으므로, src/ 를 고쳐서 push하면
+# Deployment가 새 이름을 참조하게 되어 파드가 자동으로 재시작된다. (= 코드 수정 후 push하면 배포 끝)
+configMapGenerator:
+  - name: investwells-src
+    namespace: investwells-system
+    files:
+      - src/app.py
+      - src/scrape_investwells.py
+      - src/requirements.txt

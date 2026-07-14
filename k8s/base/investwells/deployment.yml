@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: investwells
+  namespace: investwells-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: investwells
+  template:
+    metadata:
+      labels:
+        app: investwells
+    spec:
+      containers:
+        - name: app
+          image: python:3.12-slim
+          # 커스텀 이미지를 만들지 않는 대신, 기동 시 의존성을 설치하고 앱을 띄운다.
+          # --workers 1: 워커를 늘리면 app.py의 캐시·락이 프로세스별로 갈라져 무용지물이 된다.
+          #              스레드로 동시 요청을 받으므로 스크랩 중에도 헬스체크는 응답한다.
+          # --timeout 180: 전체 스크랩이 20초 남짓이라 gunicorn 기본값(30초)은 아슬아슬하다.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              pip install --no-cache-dir -r /src/requirements.txt && \
+              exec gunicorn --chdir /src --bind 0.0.0.0:8080 \
+                   --workers 1 --threads 4 --timeout 180 app:app
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            # 같은 결과를 재사용할 시간(초). 새로고침을 연타해도 investwells 쪽에는
+            # 10분에 한 번만 실제 요청이 나간다.
+            - name: CACHE_TTL
+              value: "600"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: src
+              mountPath: /src
+              readOnly: true
+          # pip install이 끝나야 리슨을 시작하므로 기동에 시간을 넉넉히 준다(최대 150초).
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: src
+          configMap:
+            name: investwells-src
