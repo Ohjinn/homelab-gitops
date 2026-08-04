@@ -8,8 +8,9 @@ data:
   # 토큰/비밀번호는 parking-secret 에 있고 레포에 커밋하지 않는다.
   TZ: "Asia/Seoul"
   PYTHONUNBUFFERED: "1"
-  # 사이트 조회 간격(초). 신청이 몇 건이든 조회는 이 주기로 1회만 나간다.
-  PARKING_INTERVAL: "15"
+  # 사이트 조회 간격(초). 신청이 몇 건이든 조회는 이 주기로 1회만 나가고,
+  # 대기 중인 신청이 없으면 아예 조회하지 않는다.
+  PARKING_INTERVAL: "10"
   PARKING_PORT: "8080"
   # PVC 마운트 경로. 파드가 재시작해도 신청 내역이 유지된다.
   PARKING_STATE_FILE: "/data/jobs.json"
