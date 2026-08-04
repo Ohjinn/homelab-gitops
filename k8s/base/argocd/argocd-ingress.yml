@@ -9,7 +9,16 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - http:
+    # host 를 비워두면 Traefik 의 catch-all 이 되어, 다른 Ingress 에 매칭되지
+    # 않는 모든 호스트가 ArgoCD 로 떨어진다. 터널로 들어오는 서브도메인을
+    # 하나 추가하면서 Ingress 를 깜빡하면 관리 콘솔이 그대로 인터넷에 열린다.
+    # 실제로 wizparking.newhojin.com 이 자기 Ingress 를 갖기 전까지 ArgoCD 를 보여줬다.
+    #
+    # 이 이름은 공개 DNS 에 등록하지 않는다. 내부망 전용으로 두기 위한 것이며,
+    # 접근은 hosts 파일에 "192.168.0.151 argocd.newhojin.com" 을 넣거나
+    # kubectl port-forward svc/argocd-server -n argocd 8080:80 으로 한다.
+    - host: argocd.newhojin.com
+      http:
         paths:
           - path: /
             pathType: Prefix
