@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: parking-config
+  namespace: parking-system
+data:
+  # 비밀이 아닌 설정만 여기 둔다.
+  # 토큰/비밀번호는 parking-secret 에 있고 레포에 커밋하지 않는다.
+  TZ: "Asia/Seoul"
+  PYTHONUNBUFFERED: "1"
+  # 사이트 조회 간격(초). 신청이 몇 건이든 조회는 이 주기로 1회만 나간다.
+  PARKING_INTERVAL: "15"
+  PARKING_PORT: "8080"
+  # PVC 마운트 경로. 파드가 재시작해도 신청 내역이 유지된다.
+  PARKING_STATE_FILE: "/data/jobs.json"
+  # 로그인 화면에 표시할 힌트. 비밀번호 자체는 Secret 에 있다.
+  PARKING_PASSWORD_HINT: "우리의 입사일자는?"
+  # 내부망 http 접속도 함께 쓰므로 0. 도메인(https)으로만 쓸 거면 1 로 올린다.
+  PARKING_COOKIE_SECURE: "0"

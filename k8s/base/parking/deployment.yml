@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parking
+  namespace: parking-system
+spec:
+  replicas: 1
+  # 신청 내역 PVC(RWO)를 물고 있고 상태가 프로세스 메모리에 있으므로
+  # 새 파드가 뜨기 전에 기존 파드를 먼저 내린다.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: parking
+  template:
+    metadata:
+      labels:
+        app: parking
+    spec:
+      # 이미지가 GHCR private 패키지라 자격증명이 없으면 ImagePullBackOff 가 난다.
+      # ghcr-pull 은 read:packages PAT 으로 만든 Secret 이며 git 에는 넣지 않는다.
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        # 컨테이너가 uid 10001 비루트로 돌아서, PVC 를 같은 GID 로 넘겨야 쓸 수 있다.
+        fsGroup: 10001
+      containers:
+        - name: app
+          image: ghcr.io/ohjinn/wizparking:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: parking-config
+            - secretRef:
+                name: parking-secret
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "384Mi"
+              cpu: "500m"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: parking-data
