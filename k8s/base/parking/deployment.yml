@@ -29,7 +29,7 @@ spec:
           # 이 줄은 wizparking 레포의 빌드 워크플로가 커밋 sha 로 갱신한다.
           # 손으로 고치지 말 것. 태그가 바뀌어야 ArgoCD 가 배포를 감지한다.
           # 롤백은 이 줄을 되돌리는 커밋으로 한다.
-          image: ghcr.io/ohjinn/wizparking:cf4f77baaf9915e6dca9689f4721ce2837b5c114
+          image: ghcr.io/ohjinn/wizparking:c7c4fcabb4e4b9ad637faa7b0996771615c4c5bb
           # sha 태그는 불변이라 매번 받아올 필요가 없다.
           imagePullPolicy: IfNotPresent
           envFrom:
