@@ -33,13 +33,22 @@ spec:
             - name: config
               mountPath: /app/config.yaml
               subPath: config.yaml
+          # 기동 후 80초쯤 지나 메모리가 한도를 넘으면서 커널에 죽었다.
+          # 60일간 5,842회 재시작한 원인이 이것이고, 커널 로그에
+          # "Memory cgroup out of memory: Killed process (litellm)" 로 남았다.
+          # OOM 희생자가 PID 1 이 아닌 자식 프로세스라 파드 상태에는
+          # OOMKilled 가 아니라 Error(exit 137) 로 보였다.
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "100m"
             limits:
-              memory: "512Mi"
+              memory: "1536Mi"
               cpu: "500m"
+          # TODO: probe 추가. 지금은 probe 가 없어 죽는 동안에도 Service 가
+          # 트래픽을 보낸다. 다만 파드가 계속 OOM 으로 죽는 상태에서는
+          # 헬스 엔드포인트 경로를 확인할 수 없어(exec 조차 OOM 으로 실패)
+          # 메모리부터 올리고 안정된 뒤에 붙인다.
       volumes:
         - name: config
           configMap:
