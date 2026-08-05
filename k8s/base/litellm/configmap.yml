@@ -9,7 +9,8 @@ data:
       - model_name: "default_assistant"
         litellm_params:
           model: "ollama/llama3.1"
-          api_base: "http://192.168.0.x:11434"   # 실제 맥북 내부 IP로 변경
+          # 맥북(Mac M3). 공유기에서 static 으로 고정해 둔 주소다.
+          api_base: "http://192.168.0.44:11434"
 
       - model_name: "gemini-fallback"
         litellm_params:
