@@ -1,0 +1,21 @@
+# Traefik 자체는 k3s 가 관리하지만, 그 설정을 덮어쓰는 HelmChartConfig 는
+# 평범한 쿠버네티스 리소스라 ArgoCD 로 관리할 수 있다. argocd-self-config 가
+# ArgoCD 자기 설정을 관리하는 것과 같은 패턴이다.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik-config
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Ohjinn/homelab-gitops.git'
+    targetRevision: main
+    path: k8s/base/traefik
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
