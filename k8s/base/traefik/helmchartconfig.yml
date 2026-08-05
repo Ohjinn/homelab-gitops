@@ -40,5 +40,8 @@ spec:
             # 다만 이걸 켜면 방문자 IP 를 보관하게 된다. wizparking 은 친구들이
             # 쓰므로 남의 IP 를 갖게 되는 것이고, 그래서 보관 기간을 무한으로
             # 두면 안 된다.
+            # User-Agent 는 사람과 스크립트를 가르는 데 쓴다. python-requests
+            # 나 Go-http-client 같은 값이 그대로 찍혀서 스캐너가 바로 드러난다.
             names:
               X-Forwarded-For: keep
+              User-Agent: keep
