@@ -42,6 +42,13 @@ spec:
             # 두면 안 된다.
             # User-Agent 는 사람과 스크립트를 가르는 데 쓴다. python-requests
             # 나 Go-http-client 같은 값이 그대로 찍혀서 스캐너가 바로 드러난다.
+            #
+            # CF-Connecting-IP 는 Cloudflare 가 넣어 주는 실제 방문자 주소다.
+            # 외부에 열린 도메인은 Cloudflare 를 거치므로 Traefik 이 직접
+            # 보는 출발지는 방문자가 아니다. X-Forwarded-For 는 중간에서
+            # 덧붙일 수 있는 반면 이 헤더는 Cloudflare 가 채우므로 더
+            # 믿을 만하다.
             names:
               X-Forwarded-For: keep
+              CF-Connecting-IP: keep
               User-Agent: keep
