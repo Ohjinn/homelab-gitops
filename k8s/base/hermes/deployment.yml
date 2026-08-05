@@ -4,7 +4,16 @@ metadata:
   name: hermes
   namespace: hermes-system
 spec:
-  replicas: 1
+  # 아래 image 가 가리키는 ghcr.io/ohjinn/hermes-bot 은 만들어진 적이 없다.
+  # 소스인 Ohjinn/hermes-agent 는 NousResearch/hermes-agent 의 포크이고,
+  # 그쪽 docker-publish 워크플로는 nousresearch/hermes-agent 라는 이름으로
+  # 빌드한다. 포크에서 그 이름으로 GHCR 에 push 하는 것은 권한상 불가능하다.
+  # 그래서 61일 동안 ImagePullBackOff 였다.
+  #
+  # 쓸지 말지 정하기 전까지 0 으로 내려둔다. 매니페스트와 PVC 는 남긴다.
+  # 다시 살리려면 포크의 이미지 이름을 ghcr.io/ohjinn/hermes-agent 로 바꿔
+  # 빌드하고, image 와 replicas 를 함께 고쳐야 한다.
+  replicas: 0
   selector:
     matchLabels:
       app: hermes
