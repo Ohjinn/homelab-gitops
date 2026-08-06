@@ -17,14 +17,14 @@ homelab-gitops/
 │   ├── investwells.yml
 │   ├── litellm.yml
 │   ├── parking.yml
-│   └── pumpyeong.yml
+│   └── traefik-config.yml
 └── k8s/base/                 # 각 Application 이 가리키는 실제 매니페스트
     ├── argocd/
     ├── hermes/
     ├── investwells/
     ├── litellm/
     ├── parking/
-    └── pumpyeong/
+    └── traefik/
 ```
 
 ---
@@ -65,8 +65,8 @@ Git 이 "지금 무엇이 배포돼 있는지"를 표현하게 만드는 방법�
 | cert-manager | `cert-manager` | — | upstream chart | Active |
 | parking | `parking-system` | `wizparking.newhojin.com` | `ghcr.io/ohjinn/wizparking:<sha>` | Active |
 | investwells | `investwells-system` | `nuri.newhojin.com` | `python:3.12-slim` + ConfigMap 소스 | Active |
-| pumpyeong | `pumpyeong-system` | `hynixsurvey.newhojin.com` | `nginx:1.27-alpine` | Active |
-| litellm | `litellm-system` | — | `ghcr.io/berriai/litellm:main-latest` | 재시작 반복 (OOM) |
+| traefik-config | `kube-system` | — | k3s 내장 | Active |
+| litellm | `litellm-system` | — | `ghcr.io/berriai/litellm` (digest 고정) | Active |
 | hermes | `hermes-system` | — | `ghcr.io/ohjinn/hermes-bot:latest` | 중단 — 이미지가 push 된 적 없음 |
 
 ---
