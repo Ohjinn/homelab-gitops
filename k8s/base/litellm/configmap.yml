@@ -6,24 +6,29 @@ metadata:
 data:
   config.yaml: |
     model_list:
+      # 주력이 Gemini 다. 처음에는 맥북(Ollama)이 주력이고 Gemini 가 폴백
+      # 이었는데, 실측이 전부 반대를 가리켰다.
+      #
+      #   Gemini 2.5 Flash   0.62 초, "서재 등만 남기고 다 꺼" 를 맞혔다
+      #   qwen2.5:14b        웜 3.6 초 / 콜드 13.7 초, 같은 명령을 틀렸다
+      #
+      # 결정적인 건 맥북을 들고 나간다는 것이다. 없는 게 정상 상태라
+      # 주력으로 둘 수 없다. HA 가 부르는 이름이 default_assistant 라
+      # 이름은 그대로 두고 내용만 바꾼다.
       - model_name: "default_assistant"
-        # llama3.1 에서 qwen2.5:14b 로 바꿨다. HA Assist 로 집을 제어하려면
-        # tool 호출이 정확해야 하는데, "서재 등만 남기고 다 꺼" 같은 부정·예외
-        # 표현에서 llama3.1 과 qwen2.5 7B 는 정반대로 동작했다(끄지 말아야 할
-        # 것만 껐다). 14b 는 맞혔다. 웜 3.6초라 속도도 쓸 만하다.
+        litellm_params:
+          model: "gemini/gemini-2.5-flash"
+          api_key: "os.environ/GEMINI_API_KEY"
+
+      # 맥북이 집에 있을 때를 위한 폴백. Gemini 쿼터가 떨어지면 여기로 온다.
+      # llama3.1 이 아니라 qwen2.5:14b 인 이유는, 부정·예외 표현("~만 남기고")
+      # 에서 llama3.1 과 qwen2.5 7B 는 끄지 말아야 할 것만 끄는 정반대 동작을
+      # 했고 14b 만 맞혔기 때문이다.
+      - model_name: "local-qwen"
         litellm_params:
           model: "ollama/qwen2.5:14b"
           # 맥북(Mac M3). 공유기에서 static 으로 고정해 둔 주소다.
           api_base: "http://192.168.0.44:11434"
-
-      - model_name: "gemini-fallback"
-        # gemini-2.0-flash 는 무료 티어에서 429 만 돌려준다. 키도 모델도
-        # 멀쩡한데(모델 목록에 여전히 있다) 무료 할당이 최신 모델 쪽으로
-        # 옮겨간 것으로 보인다. 2.5-flash 는 같은 키로 바로 동작하고,
-        # 위의 부정 표현 케이스도 맞혔다.
-        litellm_params:
-          model: "gemini/gemini-2.5-flash"
-          api_key: "os.environ/GEMINI_API_KEY"
 
     general_settings:
       # Ingress 로 LAN 에 열면서 넣었다. 공개 DNS 에 올리지 않아 인터넷에서는
@@ -33,26 +38,25 @@ data:
       master_key: "os.environ/LITELLM_MASTER_KEY"
 
     litellm_settings:
-      # 맥북(Ollama) 실패 시 Gemini로 자동 우회
+      # Gemini 쿼터가 떨어지면 집에 있는 맥북으로 우회한다.
       fallbacks:
         - default_assistant:
-            - gemini-fallback
-      # 맥북이 없을 때(들고 나가거나 잠들거나) 연결 시도 1 회가 3.05 초씩
-      # 걸린다. 2 였을 때는 3 번 시도 + 백오프로 10 초 넘게 태우고 나서야
-      # Gemini 로 넘어갔다. 음성 명령에는 치명적이라 1 로 줄인다.
-      num_retries: 1
+            - local-qwen
+      # 0 인 이유는 폴백 대상이 맥북이기 때문이다. 맥북이 없을 때 연결 시도
+      # 1 회가 3.05 초씩 걸리므로, 재시도가 붙으면 그만큼 곱해진다.
+      # 주력인 Gemini 가 0.62 초라 재시도로 얻을 지연 이득도 없다.
+      num_retries: 0
       request_timeout: 30
 
     router_settings:
-      # 위의 재시도를 줄여도 맥북이 없는 동안 매 요청이 3 초씩 낸다.
-      # 쿨다운은 한 번 실패한 배포를 일정 시간 후보에서 빼버려서, 세금을
-      # 요청마다가 아니라 5 분에 한 번만 내게 한다.
+      # 쿨다운으로 "죽은 맥북을 건너뛰기" 는 불가능하다. litellm 의
+      # _is_cooldown_required() 가 APIConnectionError 를 하드코딩으로
+      # 제외한다 — 호스트가 꺼져 있는 상황이 정확히 그 에러라, allowed_fails
+      # 나 cooldown_time 을 어떻게 줘도 걸리지 않는다. 그래서 주력을
+      # 뒤집는 것으로 해결했고, 여기 남은 설정은 429 용이다.
       #
-      # litellm 에는 "주기적으로 핑을 쏴서 살아있을 때만 보낸다" 는 기능이
-      # 없다. 실패로 학습하는 이 방식이 가장 가까운 대안이다. 맥북이 다시
-      # 켜지면 쿨다운이 끝난 뒤 첫 요청부터 자연히 로컬로 돌아간다.
-      # 0 이어야 첫 실패에 바로 걸린다. 판정이 `updated_fails > allowed_fails`
-      # 라서 1 로 두면 1 > 1 이 거짓이 되어 두 번째 실패까지 기다린다.
-      # 맥북이 없는 동안 첫 두 요청이 각각 10 초 넘게 걸리는 걸 실제로 봤다.
-      allowed_fails: 0
-      cooldown_time: 300
+      # 429 는 쿨다운 대상이다. Gemini 쿼터가 실제로 떨어졌을 때 계속
+      # 두드리는 대신 맥북으로 넘기라는 뜻이다. 다만 짧게 잡는다 — 맥북이
+      # 집에 없으면 쿨다운 동안 아무것도 안 되므로, 5 분은 너무 길다.
+      allowed_fails: 2
+      cooldown_time: 60
