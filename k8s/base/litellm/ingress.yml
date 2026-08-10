@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: litellm
+  namespace: litellm-system
+spec:
+  ingressClassName: traefik
+  rules:
+    # Home Assistant(192.168.0.111)가 litellm 에 닿게 하려고 연다. Service 가
+    # ClusterIP 라 클러스터 밖에서는 주소 자체가 없었다.
+    #
+    # 이 이름은 공개 DNS 에 등록하지 않는다. dns-01(192.168.0.102)의
+    # LOCAL_RECORDS 에만 넣어 집 안에서만 풀리게 한다. Cloudflare 에 올리면
+    # 터널을 통해 인터넷에 그대로 열린다 — argocd.newhojin.com 과 같은 규칙이다.
+    #
+    # 다만 공개 DNS 에 없다는 것이 집 안을 막아 주지는 않는다. 그래서
+    # litellm 쪽에 master_key 를 걸어 둔다(configmap.yml).
+    - host: litellm.newhojin.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: litellm
+                port:
+                  number: 4000

@@ -7,15 +7,30 @@ data:
   config.yaml: |
     model_list:
       - model_name: "default_assistant"
+        # llama3.1 에서 qwen2.5:14b 로 바꿨다. HA Assist 로 집을 제어하려면
+        # tool 호출이 정확해야 하는데, "서재 등만 남기고 다 꺼" 같은 부정·예외
+        # 표현에서 llama3.1 과 qwen2.5 7B 는 정반대로 동작했다(끄지 말아야 할
+        # 것만 껐다). 14b 는 맞혔다. 웜 3.6초라 속도도 쓸 만하다.
         litellm_params:
-          model: "ollama/llama3.1"
+          model: "ollama/qwen2.5:14b"
           # 맥북(Mac M3). 공유기에서 static 으로 고정해 둔 주소다.
           api_base: "http://192.168.0.44:11434"
 
       - model_name: "gemini-fallback"
+        # gemini-2.0-flash 는 무료 티어에서 429 만 돌려준다. 키도 모델도
+        # 멀쩡한데(모델 목록에 여전히 있다) 무료 할당이 최신 모델 쪽으로
+        # 옮겨간 것으로 보인다. 2.5-flash 는 같은 키로 바로 동작하고,
+        # 위의 부정 표현 케이스도 맞혔다.
         litellm_params:
-          model: "gemini/gemini-2.0-flash"
+          model: "gemini/gemini-2.5-flash"
           api_key: "os.environ/GEMINI_API_KEY"
+
+    general_settings:
+      # Ingress 로 LAN 에 열면서 넣었다. 공개 DNS 에 올리지 않아 인터넷에서는
+      # 못 오지만, 그건 집 안을 막아 주지 않는다. Host 헤더만 맞추면 LAN 의
+      # 아무 기기나(Tailscale exit node 를 탄 것까지) 그냥 쓸 수 있고, 뒤에
+      # Gemini 키가 물려 있어 남이 쓰면 무료 할당이 그대로 탄다.
+      master_key: "os.environ/LITELLM_MASTER_KEY"
 
     litellm_settings:
       # 맥북(Ollama) 실패 시 Gemini로 자동 우회
