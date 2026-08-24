@@ -4,11 +4,22 @@ metadata:
   name: hermes-config
   namespace: hermes-system
 data:
-  # LiteLLM 프록시 주소 (Ollama→Gemini 자동 폴백 처리)
-  LLM_API_BASE: "http://litellm.litellm-system.svc.cluster.local:4000"
-  LLM_MODEL: "default_assistant"
+  # 상류(NousResearch/hermes-agent)는 OpenAI 호환 엔드포인트를 이 이름으로 읽는다.
+  # 예전에 쓰던 LLM_API_BASE / LLM_MODEL 은 직접 만들려던 봇의 이름이라 상류가
+  # 무시한다. litellm 은 /v1 아래에 OpenAI 호환 API 를 낸다.
+  OPENAI_BASE_URL: "http://litellm.litellm-system.svc.cluster.local:4000/v1"
 
-  # 매월 4일 알림 발송 시각 (24시간제, 한국 시간)
-  REMINDER_DAY: "4"
-  REMINDER_HOUR: "9"
+  # litellm 의 model_name 이다. 실제로 뒤에 붙는 것은 Gemini 2.5 Flash 이고
+  # 쿼터가 떨어지면 맥북의 qwen2.5:14b 로 넘어간다. HA 도 같은 이름을 부른다.
+  HERMES_MODEL: "default_assistant"
+
+  # 이미지가 HERMES_HOME 과 HERMES_WRITE_SAFE_ROOT 를 모두 /opt/data 로 잡는다.
+  # 에이전트가 마운트된 볼륨 밖으로 쓰지 못하게 막는 장치라 PVC 도 여기 붙인다.
+  HERMES_HOME: "/opt/data"
+
+  # 이미지가 파일 소유자로 쓸 UID/GID. 아래 fsGroup 과 같은 값이어야 PVC 에
+  # 쓸 수 있다.
+  HERMES_UID: "10000"
+  HERMES_GID: "10000"
+
   TZ: "Asia/Seoul"

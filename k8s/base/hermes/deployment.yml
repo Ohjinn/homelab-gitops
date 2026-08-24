@@ -4,16 +4,17 @@ metadata:
   name: hermes
   namespace: hermes-system
 spec:
-  # 아래 image 가 가리키는 ghcr.io/ohjinn/hermes-bot 은 만들어진 적이 없다.
-  # 소스인 Ohjinn/hermes-agent 는 NousResearch/hermes-agent 의 포크이고,
-  # 그쪽 docker-publish 워크플로는 nousresearch/hermes-agent 라는 이름으로
-  # 빌드한다. 포크에서 그 이름으로 GHCR 에 push 하는 것은 권한상 불가능하다.
-  # 그래서 61일 동안 ImagePullBackOff 였다.
-  #
-  # 쓸지 말지 정하기 전까지 0 으로 내려둔다. 매니페스트와 PVC 는 남긴다.
-  # 다시 살리려면 포크의 이미지 이름을 ghcr.io/ohjinn/hermes-agent 로 바꿔
-  # 빌드하고, image 와 replicas 를 함께 고쳐야 한다.
-  replicas: 0
+  # 2026-08-24: 포크를 빌드할 필요가 없었다. 상류가 Docker Hub 에 공식 이미지를
+  # 올리고 있다(nousresearch/hermes-agent, 풀 850 만). 61 일 동안 ImagePullBackOff
+  # 였던 것은 push 된 적 없는 ghcr.io/ohjinn/hermes-bot 을 가리키고 있었기 때문이다.
+  replicas: 1
+
+  # 상태를 /opt/data 한 곳에 쌓고 게이트웨이는 호스트당 하나만 도는 설계라
+  # 복제를 늘릴 수 없다. RWO PVC 와도 맞물린다. 롤링 업데이트로 새 파드가
+  # 먼저 뜨면 볼륨을 두 번 잡으려다 멈추므로 Recreate 로 둔다.
+  strategy:
+    type: Recreate
+
   selector:
     matchLabels:
       app: hermes
@@ -22,25 +23,64 @@ spec:
       labels:
         app: hermes
     spec:
+      # local-path 가 만든 디렉토리는 root 소유라 그대로면 컨테이너가 못 쓴다.
+      # HERMES_UID/GID 와 같은 값을 줘서 kubelet 이 볼륨을 chown 하게 한다.
+      securityContext:
+        fsGroup: 10000
+
       containers:
         - name: hermes
-          image: ghcr.io/ohjinn/hermes-bot:latest
+          # latest 를 쓰지 않는다. 매니페스트가 그대로면 ArgoCD 가 변화를 못 보고,
+          # 태그가 조용히 바뀌면 언제 무엇이 배포됐는지 추적이 안 된다.
+          image: docker.io/nousresearch/hermes-agent:v2026.8.19
+
+          # 이미지의 기본 엔트리포인트는 s6-overlay 초기화이고, 어떤 모드로
+          # 돌지는 이 인자가 정한다. gateway 가 메신저(텔레그램) 게이트웨이다.
+          args: ["gateway", "run"]
+
           envFrom:
             - configMapRef:
                 name: hermes-config
             - secretRef:
                 name: hermes-secret
+
           volumeMounts:
             - name: data
-              mountPath: /app/data
+              mountPath: /opt/data
+
+            # Chromium 은 렌더러 프로세스 사이의 데이터를 공유 메모리로 주고받는다.
+            # 컨테이너 기본 /dev/shm 은 64MB 뿐이라 페이지를 열면 탭이 그냥 죽고
+            # "Target closed" 만 남는다. 메모리 한도를 올려도 안 고쳐지는 증상이라
+            # 원인을 찾기 어렵다.
+            #
+            # 주의: medium=Memory 인 emptyDir 은 노드 메모리를 쓰고 파드의 메모리
+            # 한도에 함께 계산된다. 아래 limits 2Gi 중 512Mi 를 이것이 가져갈 수
+            # 있다는 뜻이라, 그만큼을 감안해 한도를 잡았다.
+            - name: dshm
+              mountPath: /dev/shm
+
           resources:
+            # 브라우저 도구를 켠다는 전제다. 상류 기준 브라우저를 켜면 바닥이
+            # 1GB → 2GB 로 올라가는데, 그건 "가만히 있을 때" 값이다. 한도를
+            # 바닥과 같게 두면 첫 페이지를 여는 순간 OOMKilled 라 여유를 준다.
+            # 탭 하나가 렌더러를 따로 띄우고 300~700MB 를 쓴다.
+            #
+            # 노드는 2 vCPU / 9.9GB 이고 기존 요청 합이 1,036Mi(10%) 뿐이라
+            # 4Gi 한도는 감당된다. 실제 병목은 메모리가 아니라 CPU 다 —
+            # 코어가 2 개인데 기존 limits 합이 이미 75% 다. 브라우저가 붙으면
+            # 렌더링이 느린 것은 감수해야 한다.
             requests:
-              memory: "256Mi"
-              cpu: "100m"
+              memory: "1Gi"
+              cpu: "300m"
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "4Gi"
+              cpu: "1500m"
+
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: hermes-data
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi
