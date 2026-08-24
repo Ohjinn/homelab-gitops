@@ -28,6 +28,59 @@ spec:
       securityContext:
         fsGroup: 10000
 
+      # config.yaml 은 PVC 에 있고 앱이 직접 관리한다(_config_version 과 migrate
+      # 가 있어서 ConfigMap 으로 덮으면 그 메커니즘이 깨진다). 그래서 파일이
+      # 아니라 "설정하는 명령" 을 선언한다. 매번 실행돼도 결과가 같고, PVC 가
+      # 비어 있어도 자동으로 복구된다.
+      #
+      # 여기 있는 값들은 전부 실측으로 정해졌다. 자세한 경위는 아래 주석 참고.
+      initContainers:
+        - name: config
+          image: docker.io/nousresearch/hermes-agent:v2026.8.19
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              H=/opt/hermes/bin/hermes
+
+              # provider 이름이 'openai' 가 아니라 'openai-api' 다. 레지스트리에
+              # 등록된 이름만 통과하고, 'openai' 는 Unknown provider 로 거부된다.
+              # 'auto' 도 안 된다 — base_url 의 도메인으로 추론하는 방식이라
+              # 사설 주소(litellm)를 판정하지 못하고 "No LLM provider configured"
+              # 로 떨어진다.
+              $H config set model.provider openai-api
+              $H config set model.base_url \
+                "http://litellm.litellm-system.svc.cluster.local:4000/v1"
+
+              # litellm 의 model_name 이다. 뒤에 붙는 것은 Gemini 2.5 Flash 이고
+              # 쿼터가 떨어지면 맥북 qwen2.5:14b 로 넘어간다. HA 도 같은 이름을 쓴다.
+              $H config set model.default default_assistant
+
+              # 1 = 재시도 없음(단일 시도). litellm 이 num_retries: 0 인데 여기가
+              # 기본값 3 이면 타임아웃이 곱해진다 — litellm request_timeout 30 초
+              # × 3 회 = 90 초. litellm 에서 재시도를 0 으로 눌러 둔 이유가
+              # 이 계층에서 되살아나므로 짝을 맞춘다.
+              $H config set agent.api_max_retries 1
+
+              echo "--- 적용된 설정 ---"
+              for k in model.provider model.base_url model.default agent.api_max_retries; do
+                printf '%s = ' "$k"; $H config get "$k"
+              done
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
       containers:
         - name: hermes
           # latest 를 쓰지 않는다. 매니페스트가 그대로면 ArgoCD 가 변화를 못 보고,
