@@ -84,6 +84,20 @@ data:
       master_key: "os.environ/LITELLM_MASTER_KEY"
 
     litellm_settings:
+      # 폴백이 실제로 동작하려면 반드시 필요하다. 클라이언트가 보내는 파라미터를
+      # 모든 프로바이더가 지원하지는 않는다 — hermes 는 parallel_tool_calls 를
+      # 보내는데 Gemini 는 받고 Ollama 는 거부한다(UnsupportedParamsError).
+      #
+      # 그래서 Gemini 가 429 를 내고 맥북으로 넘어가는 순간, 폴백 요청 자체가
+      # 파라미터 때문에 실패했다. 폴백 체인이 있는데도 hermes 는 한 번도
+      # 맥북으로 넘어가지 못했다. 이걸 켜면 대상이 모르는 파라미터를 조용히
+      # 떨어뜨리고 호출을 진행한다.
+      #
+      # 이종 프로바이더로 폴백하는 구성에서는 사실상 필수 설정이다. 대가는
+      # "조용히 무시된다" 는 것이므로, 어떤 파라미터가 떨어졌는지 알아야 할
+      # 때는 로그 레벨을 올려서 확인할 것.
+      drop_params: true
+
       # Gemini 쿼터가 떨어지면 집에 있는 맥북으로 우회한다.
       fallbacks:
         - default_assistant:
