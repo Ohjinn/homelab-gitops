@@ -57,11 +57,19 @@ spec:
               # 쿼터가 떨어지면 맥북 qwen2.5:14b 로 넘어간다. HA 도 같은 이름을 쓴다.
               $H config set model.default default_assistant
 
-              # 1 = 재시도 없음(단일 시도). litellm 이 num_retries: 0 인데 여기가
-              # 기본값 3 이면 타임아웃이 곱해진다 — litellm request_timeout 30 초
-              # × 3 회 = 90 초. litellm 에서 재시도를 0 으로 눌러 둔 이유가
-              # 이 계층에서 되살아나므로 짝을 맞춘다.
-              $H config set agent.api_max_retries 1
+              # 2 = 한 번만 재시도. 처음에는 1(재시도 없음)로 뒀다. 근거는
+              # litellm request_timeout 30 초 × 기본 3 회 = 90 초라는 곱셈이었다.
+              #
+              # 2026-08-25 에 2 로 올린다. 재시도가 필요한 실패가 실재하기
+              # 때문이다 — Gemini 쿼터가 떨어지면 스트리밍 중간에 429 가 오고,
+              # 그때는 litellm 이 폴백하지 못한다(MidStreamFallbackError).
+              # 재시도 한 번이면 쿨다운에 걸린 Gemini 를 건너뛰고 맥북으로 가서
+              # 성공한다. 즉 사용자에게 오류가 도달하지 않는다.
+              #
+              # 90 초 걱정은 여전히 유효하지만 범위가 좁다. 429 는 즉시 떨어지지
+              # 느리게 실패하지 않는다. 느린 실패는 맥북이 집에 없을 때인데
+              # 그 경우엔 재시도해도 답이 없다. 2 회면 최악 60 초로 묶인다.
+              $H config set agent.api_max_retries 2
 
               echo "--- 적용된 설정 ---"
               for k in model.provider model.base_url model.default agent.api_max_retries; do
