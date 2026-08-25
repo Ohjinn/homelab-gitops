@@ -76,6 +76,23 @@ data:
           # 맥북(Mac M3). 공유기에서 static 으로 고정해 둔 주소다.
           api_base: "http://192.168.0.44:11434"
 
+          # 폴백 대상은 원 요청을 그대로 받는다. 클라이언트(hermes)가 Gemini
+          # 기준으로 붙인 파라미터가 여기서 거부되면 폴백이 성립하지 않는다.
+          #
+          # litellm_settings 의 drop_params 는 "표준 OpenAI 파라미터 중 대상이
+          # 모르는 것" 만 떨어뜨린다. thinking 처럼 litellm 이 프로바이더별로
+          # 변환해 넘기는 값은 거기에 안 걸리므로 여기서 따로 지정한다.
+          #
+          #   parallel_tool_calls  ollama does not support parameters
+          #   thinking             "qwen2.5:14b" does not support thinking
+          #
+          # qwen2.5 는 추론 모델이 아니라서 thinking 자체가 성립하지 않는다.
+          # 추론을 지원하는 모델로 바꾸면 이 줄에서 thinking 을 빼야 한다.
+          additional_drop_params:
+            - "thinking"
+            - "reasoning_effort"
+            - "parallel_tool_calls"
+
     general_settings:
       # Ingress 로 LAN 에 열면서 넣었다. 공개 DNS 에 올리지 않아 인터넷에서는
       # 못 오지만, 그건 집 안을 막아 주지 않는다. Host 헤더만 맞추면 LAN 의
