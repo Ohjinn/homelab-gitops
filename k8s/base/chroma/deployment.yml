@@ -17,6 +17,15 @@ spec:
       labels:
         app: chroma
     spec:
+      # 쿠버네티스는 같은 네임스페이스의 서비스마다 <서비스명>_PORT 같은 환경변수를
+      # 자동으로 주입한다(Docker 링크 시절 호환용). 서비스 이름이 chroma 라서
+      # CHROMA_PORT=tcp://10.43.x.x:8000 이 들어가는데, Chroma 는 CHROMA_ 접두어를
+      # 자기 설정으로 읽기 때문에 PORT 를 포트 번호(u16)로 파싱하려다 패닉한다.
+      #
+      #   invalid type: found string "tcp://...", expected u16 for key "PORT"
+      #
+      # 요즘은 서비스를 DNS 로 찾으므로 이 변수들이 쓸모가 없다. 꺼 버린다.
+      enableServiceLinks: false
       containers:
         - name: chroma
           # 버전 태그를 그대로 쓴다. digest 로 고정하지 않는 이유는 두 가지다.
