@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chroma
+  namespace: chroma-system
+spec:
+  replicas: 1
+  # 상태를 PVC 한 곳에 쌓고 RWO 라 복제를 늘릴 수 없다. 롤링 업데이트로 새 파드가
+  # 먼저 뜨면 볼륨을 두 번 잡으려다 멈추므로 Recreate 로 둔다.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: chroma
+  template:
+    metadata:
+      labels:
+        app: chroma
+    spec:
+      containers:
+        - name: chroma
+          # 버전 태그를 그대로 쓴다. digest 로 고정하지 않는 이유는 두 가지다.
+          # (1) 1.5.9 는 릴리스 태그라 움직이지 않는다. litellm 의 main-latest
+          #     처럼 매 빌드마다 갱신되는 태그와는 성격이 다르다.
+          # (2) 아키텍처별 digest 를 박으면 amd64 전용이 된다.
+          #
+          # 그리고 이 숫자가 Local-RAG 의 chromadb 클라이언트 버전과 같아야 한다
+          # (uv.lock 에 1.5.9 로 고정돼 있다). 태그로 두면 그 대응이 눈에 보인다.
+          image: docker.io/chromadb/chroma:1.5.9
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: IS_PERSISTENT
+              value: "TRUE"
+            - name: PERSIST_DIRECTORY
+              value: /data
+            - name: ANONYMIZED_TELEMETRY
+              value: "FALSE"
+
+            # 인증. 이 레포는 공개라 값은 매니페스트에 넣지 않고 클러스터에서
+            # 직접 만든다. 내부 전용이지만 LAN 은 안전한 곳이 아니다 —
+            # litellm configmap 에 적어 둔 것과 같은 이유다.
+            - name: CHROMA_SERVER_AUTHN_PROVIDER
+              value: "chromadb.auth.token_authn.TokenAuthenticationServerProvider"
+            - name: CHROMA_SERVER_AUTHN_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  name: chroma-secret
+                  key: CHROMA_TOKEN
+            - name: CHROMA_AUTH_TOKEN_TRANSPORT_HEADER
+              value: "X-Chroma-Token"
+
+          volumeMounts:
+            - name: data
+              mountPath: /data
+
+          resources:
+            # 인덱스가 작다. HNSW 가 910 청크 x 1024 차원이라 4MB 수준이고,
+            # 실제 부담은 서버 프로세스 자체다. 임베딩은 맥북 Ollama 에서 돌기
+            # 때문에 여기서 모델을 올리는 일이 없다.
+            requests:
+              memory: "256Mi"
+              cpu: "50m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # /api/v2/heartbeat 는 인증 없이도 응답한다. 인증을 요구하는 경로로
+          # 프로브를 잡으면 토큰이 틀렸을 때 파드가 무한 재시작한다.
+          startupProbe:
+            httpGet:
+              path: /api/v2/heartbeat
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:
+            httpGet:
+              path: /api/v2/heartbeat
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v2/heartbeat
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: chroma-data

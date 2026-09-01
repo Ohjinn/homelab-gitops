@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: chroma-data
+  namespace: chroma-system
+spec:
+  accessModes:
+    # local-path 는 RWO 만 준다. Chroma 는 어차피 파드 하나로 도니 문제가 없다.
+    # 다만 워커 노드를 추가하면 이 볼륨이 마스터에 못 박혀서 파드도 따라 묶인다.
+    - ReadWriteOnce
+  resources:
+    requests:
+      # 현재 인덱스가 17MB(910 청크)다. 코퍼스가 몇 배로 늘어도 여유가 크다.
+      # local-path 는 실제 쓴 만큼만 차지하므로 넉넉히 잡아도 손해가 없다.
+      storage: 5Gi
