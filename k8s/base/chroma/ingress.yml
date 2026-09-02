@@ -16,8 +16,8 @@ spec:
     # 이 이름은 공개 DNS 에 등록하지 않는다. dns-01(192.168.0.102)의
     # LOCAL_RECORDS 에만 넣어 집 안에서만 풀리게 한다 — litellm 과 같은 규칙이다.
     #
-    # 공개 DNS 에 없다는 것이 집 안을 막아 주지는 않으므로 Chroma 쪽에
-    # 토큰 인증을 걸어 둔다(deployment.yml 의 CHROMA_SERVER_AUTHN_*).
+    # 공개 DNS 에 없다는 것이 집 안을 막아 주지는 않으므로 앞단에서 막는다.
+    # Chroma 자체 인증이 아니라 traefik basicAuth 다 — 이유는 middleware.yml 참고.
     - host: chroma.newhojin.com
       http:
         paths:
