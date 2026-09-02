@@ -1,0 +1,21 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: chroma-auth
+  namespace: chroma-system
+spec:
+  # Chroma 1.0 부터 내장 인증이 없어졌다. Rust 로 다시 쓰이면서 chromadb.auth
+  # 설정이 통째로 무시된다 — CHROMA_SERVER_AUTHN_* 를 넣어도 조용히 아무 일도
+  # 일어나지 않는다(틀린 토큰으로도 200 이 온다). 그래서 앞단에서 막는다.
+  #
+  # 인증이 필요한 이유는 네트워크에 노출돼 있기 때문이다. 이 코퍼스에는 사내
+  # 코드(azure-terraform-standard 107 건)와 개인 메모가 들어 있고, RAG 는 문서
+  # 단위 권한이 없어서 저장소 문 하나가 유일한 통제 지점이다. 읽기뿐 아니라
+  # 쓰기도 막아야 한다 — 가짜 문서를 넣으면 LLM 이 그걸 근거로 답한다.
+  #
+  # 단독 배포(회사 맥미니 등)에서는 이 미들웨어가 필요 없다. Chroma 를
+  # localhost 에만 바인딩하면 노출 자체가 없기 때문이다. 표준화하는 것은
+  # "traefik 을 쓴다" 가 아니라 "코퍼스를 읽으면 안 되는 사람이 닿을 수
+  # 없어야 한다" 이고, 수단은 배포 형태에 따라 다르다.
+  basicAuth:
+    secret: chroma-basicauth
