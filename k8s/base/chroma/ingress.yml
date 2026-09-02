@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chroma
+  namespace: chroma-system
+spec:
+  ingressClassName: traefik
+  rules:
+    # dev-01 에서 인덱싱·질의할 때 쓴다. Service 가 ClusterIP 라 클러스터 밖에서는
+    # 주소 자체가 없다. 클러스터 안에서 도는 것(인덱싱 CronJob)은 이 이름이 아니라
+    # chroma.chroma-system.svc 로 직접 붙으므로 인그레스를 안 탄다.
+    #
+    # 이 이름은 공개 DNS 에 등록하지 않는다. dns-01(192.168.0.102)의
+    # LOCAL_RECORDS 에만 넣어 집 안에서만 풀리게 한다 — litellm 과 같은 규칙이다.
+    #
+    # 공개 DNS 에 없다는 것이 집 안을 막아 주지는 않으므로 Chroma 쪽에
+    # 토큰 인증을 걸어 둔다(deployment.yml 의 CHROMA_SERVER_AUTHN_*).
+    - host: chroma.newhojin.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: chroma
+                port:
+                  number: 8000
