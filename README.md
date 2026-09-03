@@ -267,8 +267,8 @@ kubectl apply -f bootstrap/cluster-root.yml
 
 - [x] ~~litellm OOM~~ — 1536Mi 로 올려 해결
 - [x] ~~hermes 이미지~~ — 포크가 필요 없었다. 상류 공식 이미지로 교체
-- [ ] `chroma-secret` 정리 — 동작하지 않는 Chroma 내장 인증 때 만든 잔재라
-      아무 매니페스트도 참조하지 않는다
+- [x] ~~`chroma-secret` 정리~~ — 동작하지 않는 Chroma 내장 인증 때 만든 잔재였다.
+      아무 매니페스트도 참조하지 않아 2026-09-03 에 삭제
 - [ ] rag-api 이미지를 GHCR 로 굽기 — 지금은 파드가 뜰 때 `git clone` + `uv sync`
       를 한다(40 초). PyPI 나 GitHub 가 죽으면 파드가 안 뜨고 어느 커밋이 도는지
       고정되지 않는다. Local-RAG 용 러너 등록이 먼저다
