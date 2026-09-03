@@ -126,6 +126,29 @@ spec:
             #
             # 기본값이 전부 True 다(소스 config.py 에서 확인). 이름을 추측한
             # 것이 아니라 os.getenv 호출을 직접 보고 적었다.
+            # 내장 도구도 붙이지 않는다.
+            #
+            # 도구 목록이 비어 있어도 Open WebUI 는 자기 내장 도구를 붙여
+            # 보낸다(tools/builtin.py 에 ask_user·search_web·execute_code 등
+            # 17 개). "너 이름이 뭐니?" 에 local-qwen 이 이렇게 답했다 —
+            #
+            #   {"name": "ask_user", "arguments": {"questions": [...]}}
+            #
+            # 도구 호출을 API 의 tool_calls 필드가 아니라 본문 텍스트로 뱉은
+            # 것이다. litellm 에 직접 같은 질문을 하면 3/3 정상으로 "제 이름은
+            # Qwen입니다" 라고 답한다. Ollama 를 거치는 qwen2.5 는 도구가
+            # 붙으면 이런 식으로 새는 일이 있다.
+            #
+            # 붙일지 말지는 middleware.py 가 이렇게 정한다 —
+            #
+            #   use_builtin_tools = ... and params.function_calling != 'legacy'
+            #
+            # 이 화면의 목적은 rag 와 일반 모델의 답을 비교하는 것이라 도구가
+            # 필요 없다. 나중에 도구를 쓰려면 도구를 제대로 다루는 모델
+            # (gemini-chat)에만 대화 단위로 켜는 편이 낫다.
+            - name: DEFAULT_MODEL_PARAMS
+              value: '{"function_calling":"legacy"}'
+
             - name: ENABLE_NOTES
               value: "False"
             - name: ENABLE_CALENDAR
