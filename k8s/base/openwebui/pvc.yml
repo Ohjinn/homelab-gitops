@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openwebui-data
+  namespace: openwebui-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # 대화 기록·사용자 계정이 SQLite 하나에 들어간다. 문서 업로드 기능을
+      # 쓰지 않는 한(우리는 RAG 를 따로 두므로 쓸 일이 없다) 크게 자라지 않는다.
+      storage: 2Gi
+  storageClassName: local-path

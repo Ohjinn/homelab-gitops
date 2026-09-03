@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openwebui
+  namespace: openwebui-system
+spec:
+  replicas: 1
+  # 대화 기록이 SQLite 한 파일에 있고 PVC 가 RWO 다. 롤링으로 새 파드가 먼저
+  # 뜨면 볼륨을 두 번 잡으려다 멈춘다. chroma 와 같은 이유다.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: openwebui
+  template:
+    metadata:
+      labels:
+        app: openwebui
+    spec:
+      containers:
+        - name: openwebui
+          # 태그를 그대로 쓴다. digest 로 고정하면 아키텍처 전용이 되고,
+          # main 은 상류가 계속 갱신하는 태그라 digest 를 박아 두면 업데이트를
+          # 받으려면 매번 매니페스트를 고쳐야 한다.
+          #
+          # 이미지가 크다 — 레지스트리 매니페스트 기준 압축 1.82GB(레이어 19개),
+          # 디스크에서 약 4GB. 이것 때문에 노드 디스크를 20G → 40G 로 늘렸다.
+          image: ghcr.io/open-webui/open-webui:main
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # ── 붙일 백엔드 두 개 ──────────────────────────────
+            #
+            # 세미콜론으로 여러 개를 준다. 모델 드롭다운에 두 쪽 모델이 모두
+            # 뜨고, 대화마다 골라 쓸 수 있다.
+            #
+            #   rag-api  → 홈랩 문서를 아는 모델(homelab-rag). 검색한 청크만
+            #              근거로 답한다.
+            #   litellm  → 일반 모델. 맥북 Ollama, 실패하면 Gemini 로 폴백.
+            #
+            # 클러스터 안이라 인그레스를 안 탄다. rag-api 의 basicAuth 는
+            # 인그레스에 걸려 있으므로 Service 로 직접 붙으면 자격증명이 없다.
+            - name: OPENAI_API_BASE_URLS
+              value: "http://rag-api.chroma-system.svc:8000/v1;http://litellm.litellm-system.svc:4000/v1"
+            # 키를 요구하지 않는 백엔드라도 자리를 채워야 한다. 개수가
+            # URL 개수와 맞지 않으면 Open WebUI 가 짝을 못 짓는다.
+            - name: OPENAI_API_KEYS
+              value: "none;none"
+
+            # Ollama 연동은 끈다. 맥북 Ollama 에 직접 붙이면 모델 목록이
+            # litellm 것과 겹쳐 같은 모델이 두 번 뜬다. 경로를 하나로 둔다.
+            - name: ENABLE_OLLAMA_API
+              value: "False"
+
+            # ── 가입 통제 ─────────────────────────────────────
+            #
+            # 첫 계정이 관리자가 된다. 그 뒤로는 막는다 — 인그레스에 basicAuth 를
+            # 걸지 않았으므로 집 안이나 tailnet 에 있는 누구든 화면에 닿는다.
+            # 열어 두면 아무나 계정을 만들 수 있다.
+            - name: ENABLE_SIGNUP
+              value: "False"
+            - name: DEFAULT_USER_ROLE
+              value: "pending"
+
+            # 상류로 사용 통계를 보내지 않는다. 코퍼스에 사내 코드가 있다.
+            - name: SCARF_NO_ANALYTICS
+              value: "true"
+            - name: DO_NOT_TRACK
+              value: "true"
+            - name: ANONYMIZED_TELEMETRY
+              value: "False"
+
+            # 내장 RAG 를 끈다. 우리는 청킹·임베딩·인덱싱을 직접 만들었고
+            # rag-api 가 그것을 서비스한다. 여기서 또 문서를 벡터화하면
+            # 코퍼스가 둘로 갈리고 어느 쪽이 답했는지 알 수 없게 된다.
+            - name: ENABLE_RAG_WEB_SEARCH
+              value: "False"
+            - name: AUDIO_STT_ENGINE
+              value: ""
+
+          volumeMounts:
+            - name: data
+              mountPath: /app/backend/data
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "100m"
+            limits:
+              # 파이썬 백엔드 + SvelteKit 정적 파일이다. 추론은 전부 맥북에서
+              # 돌아서 여기서 모델이 올라가는 일은 없다.
+              memory: "1536Mi"
+              cpu: "1000m"
+
+          # 첫 기동에 마이그레이션이 돌아 1~2분 걸린다. 그동안 liveness 가
+          # 죽이지 않도록 startupProbe 로 감싸고 한도를 5분으로 잡는다.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openwebui-data

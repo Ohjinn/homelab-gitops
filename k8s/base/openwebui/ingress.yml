@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openwebui
+  namespace: openwebui-system
+spec:
+  ingressClassName: traefik
+  rules:
+    # traefik basicAuth 를 걸지 않는다. Open WebUI 자체 로그인이 있어서
+    # 앞단에도 걸면 로그인을 두 번 하게 된다. 대신 가입을 막아 둔다
+    # (deployment.yml 의 ENABLE_SIGNUP=false) — 첫 계정을 만든 뒤에는
+    # 관리자가 초대해야 들어올 수 있다.
+    #
+    # chroma·rag 와 같은 규칙으로 공개 DNS 에는 올리지 않는다. 집 안에서만
+    # 풀리고, 밖에서는 Tailscale Split DNS 로 들어온다.
+    - host: chat.newhojin.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openwebui
+                port:
+                  number: 8080
