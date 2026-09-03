@@ -109,6 +109,32 @@ spec:
             - name: AUDIO_STT_ENGINE
               value: ""
 
+            # ── 내장 비서 기능을 끈다 ──────────────────────────
+            #
+            # 이것들이 켜져 있으면 Open WebUI 가 "나는 메모를 쓰고 일정을
+            # 관리하는 비서다" 라는 설명을 시스템 프롬프트에 붙인다. 그래서
+            # Terraform 코드를 짜 달라고 했더니 모델이 이렇게 답했다 —
+            #
+            #   "저는 인프라를 프로비저닝하는 코드를 직접 작성할 수는
+            #    없습니다. 저는 정보를 검색하고, 일정을 관리하며, 메모를
+            #    작성하는 등의 기능을 수행하도록 설계되었습니다."
+            #
+            # 모델이 못 하는 게 아니라 **못 한다고 배운 것**이다. litellm 에
+            # 직접 물으면 잘 답한다. 이 화면의 목적은 rag 와 일반 모델의
+            # 답을 비교하는 것이라, 중간에서 성격을 입히면 비교가 성립하지
+            # 않는다.
+            #
+            # 기본값이 전부 True 다(소스 config.py 에서 확인). 이름을 추측한
+            # 것이 아니라 os.getenv 호출을 직접 보고 적었다.
+            - name: ENABLE_NOTES
+              value: "False"
+            - name: ENABLE_CALENDAR
+              value: "False"
+            - name: ENABLE_AUTOMATIONS
+              value: "False"
+            - name: ENABLE_MEMORIES
+              value: "False"
+
           volumeMounts:
             - name: data
               mountPath: /app/backend/data
