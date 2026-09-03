@@ -43,10 +43,24 @@ spec:
             # 인그레스에 걸려 있으므로 Service 로 직접 붙으면 자격증명이 없다.
             - name: OPENAI_API_BASE_URLS
               value: "http://rag-api.chroma-system.svc:8000/v1;http://litellm.litellm-system.svc:4000/v1"
-            # 키를 요구하지 않는 백엔드라도 자리를 채워야 한다. 개수가
-            # URL 개수와 맞지 않으면 Open WebUI 가 짝을 못 짓는다.
+            # 키도 세미콜론으로 URL 과 짝을 맞춘다. 개수가 다르면 Open WebUI 가
+            # 짝을 못 짓는다.
+            #
+            #   rag-api  → 키가 없다. basicAuth 는 인그레스에만 걸려 있고
+            #              Service 로 직접 붙으면 그 문을 안 지난다. 'none'.
+            #   litellm  → LITELLM_MASTER_KEY 를 요구한다. 안 보내면 401 이다.
+            #              처음에 'none' 으로 두었다가 실제로 401 을 받았다.
+            #
+            # 이 레포는 공개라 값을 매니페스트에 두지 않는다. 클러스터에 직접
+            # 만들고 이름으로만 참조한다 — chroma·litellm 과 같은 규칙이다.
+            #
+            #   kubectl -n openwebui-system create secret generic openwebui-backends \
+            #     --from-literal=OPENAI_API_KEYS="none;$LITELLM_MASTER_KEY"
             - name: OPENAI_API_KEYS
-              value: "none;none"
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-backends
+                  key: OPENAI_API_KEYS
 
             # Ollama 연동은 끈다. 맥북 Ollama 에 직접 붙이면 모델 목록이
             # litellm 것과 겹쳐 같은 모델이 두 번 뜬다. 경로를 하나로 둔다.
