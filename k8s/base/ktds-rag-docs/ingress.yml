@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ktds-rag-docs
+  namespace: docs-system
+spec:
+  ingressClassName: traefik
+  rules:
+    # Cloudflare Tunnel 이 이 이름을 192.168.0.151:80 으로 보낸다. 그래서
+    # 이 Ingress 는 집 안에서만 쓰는 다른 것들과 달리 **공개 경로**다.
+    #
+    # 인증을 붙이지 않았다. 붙이려면 chroma 처럼 traefik basicAuth 미들웨어를
+    # 만들어 annotations 에 걸거나, Cloudflare Access 를 앞단에 두면 된다.
+    - host: ktds-rag.newhojin.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ktds-rag-docs
+                port:
+                  number: 80

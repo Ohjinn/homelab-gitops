@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ktds-rag-docs
+  namespace: docs-system
+spec:
+  selector:
+    app: ktds-rag-docs
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 생성되는 ConfigMap 도 같은 네임스페이스에 두어야 한다. 안 그러면 kustomize 가
+# Deployment 의 configMap 참조를 해시 이름으로 바꿔 주지 못한다 — 이름 참조
+# 치환이 네임스페이스가 같을 때만 걸리기 때문이다. 조용히 실패해서, 문서를
+# 고쳐도 파드가 안 굴러가고 옛 ConfigMap 을 계속 마운트한다.
+namespace: docs-system
+
+resources:
+  - namespace.yml
+  - deployment.yml
+  - service.yml
+  - ingress.yml
+
+# index.html 을 YAML 안에 인라인으로 박지 않고 파일로 둔다. 36KB 짜리를
+# ConfigMap 리터럴로 넣으면 diff 를 읽을 수 없고, 들여쓰기 하나로 깨진다.
+# 파일로 두면 git diff 가 문서 변경분을 그대로 보여준다.
+configMapGenerator:
+  - name: ktds-rag-docs-html
+    files:
+      - index.html
+
+# 문서를 갱신하려면 iac-automation-rag/HANDOVER.md 를 고친 뒤 index.html 을
+# 다시 만들고 여기 커밋한다. ArgoCD 가 받아서 파드를 굴린다.
+#
+#   uv run --with markdown python <렌더 스크립트>
+#
+# 원본은 어디까지나 iac-automation-rag 레포의 HANDOVER.md 다. 이 index.html 은
+# 렌더링 결과물이라 직접 고치면 다음 갱신 때 덮인다.
