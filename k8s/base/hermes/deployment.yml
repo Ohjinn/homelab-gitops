@@ -89,6 +89,72 @@ spec:
               memory: "512Mi"
               cpu: "500m"
 
+        # 크론 스크립트(private 레포 Ohjinn/hermes-tasks)를 정해진 커밋으로 맞춘다.
+        #
+        # 받는 곳은 /opt/data/scripts/hermes-tasks 하위 폴더 하나다. scripts/ 에는
+        # hermes 자신의 whatsapp-bridge 가 있어서 통째로 덮으면 안 된다. hermes 는
+        # --script 경로가 scripts/ 안으로 풀릴 때만 받아 주므로 심볼릭 링크로
+        # 밖을 가리키는 방식도 안 된다.
+        #
+        # 매번 지우고 새로 받지 않고 fetch + reset --hard 로 맞춘다. 스크립트의
+        # 상태 파일(state/, .gitignore 대상)이 그 폴더 안에 있어서, 지우면 본 공고
+        # 기록이 날아가 첫 실행처럼 전부 다시 알린다.
+        #
+        # 버전은 브랜치가 아니라 커밋 SHA 로 고정한다. 이미지 태그를 latest 로
+        # 두지 않는 것과 같은 이유다 — 스크립트를 바꾸려면 여기 SHA 를 올리고,
+        # 그 변경이 ArgoCD 를 거쳐 파드를 다시 띄운다.
+        #
+        # GitHub 에 못 닿아도 hermes 본체는 떠야 한다. 크론 하나 때문에 텔레그램
+        # 대화까지 멈추면 안 되므로 실패는 경고만 남기고 넘어간다.
+        - name: tasks
+          image: docker.io/nousresearch/hermes-agent:v2026.8.19
+          command:
+            - /bin/sh
+            - -c
+            - |
+              DIR=/opt/data/scripts/hermes-tasks
+              REPO=git@github.com:Ohjinn/hermes-tasks.git
+
+              # 시크릿 볼륨은 fsGroup 때문에 그룹 읽기 권한이 붙는데, ssh 는
+              # 그런 개인키를 "UNPROTECTED PRIVATE KEY" 로 거부한다. 복사해서
+              # 600 으로 쓴다.
+              cp /deploy-key/id_ed25519 /tmp/key && chmod 600 /tmp/key
+              echo "$GITHUB_HOST_KEY" > /tmp/known_hosts
+              export GIT_SSH_COMMAND="ssh -i /tmp/key -o IdentitiesOnly=yes \
+                -o UserKnownHostsFile=/tmp/known_hosts -o StrictHostKeyChecking=yes"
+
+              if [ ! -d "$DIR/.git" ]; then
+                git clone -q "$REPO" "$DIR" || echo "WARN: clone 실패"
+              fi
+              if [ -d "$DIR/.git" ]; then
+                git -C "$DIR" fetch -q origin \
+                  && git -C "$DIR" reset -q --hard "$TASKS_REF" \
+                  || echo "WARN: $TASKS_REF 로 맞추지 못했다 — 이전 버전으로 뜬다"
+                chown -R hermes:hermes "$DIR"
+                echo "hermes-tasks: $(git -C "$DIR" log -1 --format='%h %s')"
+              fi
+              rm -f /tmp/key
+          env:
+            - name: TASKS_REF
+              value: 217b1b2e6d949e1a1497b916889c331a34689986
+            # GitHub 이 공개하는 호스트 키(api.github.com/meta). 중간자 공격을
+            # 막으려고 첫 접속에서 받아 믿는 대신 값을 고정한다.
+            - name: GITHUB_HOST_KEY
+              value: "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: deploy-key
+              mountPath: /deploy-key
+              readOnly: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
       containers:
         - name: hermes
           # latest 를 쓰지 않는다. 매니페스트가 그대로면 ArgoCD 가 변화를 못 보고,
@@ -145,3 +211,11 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 512Mi
+
+        # hermes-tasks 읽기 전용 deploy key. 공개 레포라 git 밖에서 만든다:
+        #   kubectl create secret generic hermes-tasks-deploy-key -n hermes-system \
+        #     --from-file=id_ed25519=$HOME/.ssh/hermes-tasks-deploy
+        - name: deploy-key
+          secret:
+            secretName: hermes-tasks-deploy-key
+            defaultMode: 0400
