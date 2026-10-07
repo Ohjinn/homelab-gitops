@@ -141,7 +141,7 @@ spec:
               rm -f /tmp/key
           env:
             - name: TASKS_REF
-              value: 217b1b2e6d949e1a1497b916889c331a34689986
+              value: 22a723dd5a5e0797423d83d2095623fd62bb35f3
             # GitHub 이 공개하는 호스트 키(api.github.com/meta). 중간자 공격을
             # 막으려고 첫 접속에서 받아 믿는 대신 값을 고정한다.
             - name: GITHUB_HOST_KEY
