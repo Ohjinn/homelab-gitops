@@ -115,6 +115,11 @@ spec:
               DIR=/opt/data/scripts/hermes-tasks
               REPO=git@github.com:Ohjinn/hermes-tasks.git
 
+              # 이 컨테이너는 root 로 돌고 폴더는 아래에서 hermes 소유로 넘긴다.
+              # git 은 소유자가 다른 저장소를 "dubious ownership" 으로 거부하므로
+              # 두 번째 기동부터 fetch/reset 이 막힌다. 이 폴더만 예외로 둔다.
+              git config --global --add safe.directory "$DIR"
+
               # 시크릿 볼륨은 fsGroup 때문에 그룹 읽기 권한이 붙는데, ssh 는
               # 그런 개인키를 "UNPROTECTED PRIVATE KEY" 로 거부한다. 복사해서
               # 600 으로 쓴다.
